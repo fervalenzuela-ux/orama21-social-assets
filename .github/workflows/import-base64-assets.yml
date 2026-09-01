@@ -1,9 +1,10 @@
-name: Import base64 assets
+name: Import ORAMA assets
 
 on:
   push:
     paths:
       - "imports/**/*.b64"
+      - "imports/**/*.url"
 
 permissions:
   contents: write
@@ -13,23 +14,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Decode assets
+      - name: Import assets
         shell: bash
         run: |
           shopt -s globstar nullglob
-          files=(imports/**/*.b64)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No import files found"
-            exit 0
-          fi
-          for src in "${files[@]}"; do
+          base64_files=(imports/**/*.b64)
+          for src in "${base64_files[@]}"; do
             rel="${src#imports/}"
             dest="${rel%.b64}"
             mkdir -p "$(dirname "$dest")"
             base64 --decode "$src" > "$dest"
             rm "$src"
           done
-      - name: Commit decoded assets
+          url_files=(imports/**/*.url)
+          for src in "${url_files[@]}"; do
+            rel="${src#imports/}"
+            dest="${rel%.url}"
+            mkdir -p "$(dirname "$dest")"
+            url="$(cat "$src")"
+            curl --fail --location --silent --show-error --retry 3 "$url" --output "$dest"
+            test -s "$dest"
+            rm "$src"
+          done
+      - name: Commit imported assets
         shell: bash
         run: |
           git config user.name "ORAMA Asset Bot"
