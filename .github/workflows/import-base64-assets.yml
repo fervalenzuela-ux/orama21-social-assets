@@ -1,0 +1,43 @@
+name: Import base64 assets
+
+on:
+  push:
+    paths:
+      - "imports/**/*.b64"
+
+permissions:
+  contents: write
+
+jobs:
+  import-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode assets
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          files=(imports/**/*.b64)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No import files found"
+            exit 0
+          fi
+          for src in "${files[@]}"; do
+            rel="${src#imports/}"
+            dest="${rel%.b64}"
+            mkdir -p "$(dirname "$dest")"
+            base64 --decode "$src" > "$dest"
+            rm "$src"
+          done
+      - name: Commit decoded assets
+        shell: bash
+        run: |
+          git config user.name "ORAMA Asset Bot"
+          git config user.email "fervalenzuela@varih.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Import ORAMA social assets"
+          git push
